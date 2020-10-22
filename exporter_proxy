@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+"""A simple TLS reverse proxy for use with Prometheus exporters."""
+
+from argparse import ArgumentParser
+import http.server
+import shutil
+import ssl
+import sys
+import urllib.error
+import urllib.request
+
+class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        self.do_GET(body=False)
+
+    def do_GET(self, body=True):
+        try:
+            resp = urllib.request.urlopen(f"{self.args.server_address}:{self.args.server_port}{self.path}")
+        except urllib.error.HTTPError as err:
+            self.send_error(err.code, err.reason)
+            return
+        except urllib.error.URLError as err:
+            self.send_error(500, "Proxy server error")
+            return
+
+        self.send_response(resp.code)
+        for header, val in resp.headers.items():
+            if header not in ['Content-Encoding', 'Transfer-Encoding', 'content-encoding', 'transfer-encoding', 'content-length', 'Content-Length']:
+                self.send_header(header, val)
+        self.end_headers()
+        if body:
+            shutil.copyfileobj(resp, self.wfile)
+        return
+
+def parse_args():
+    parser = ArgumentParser(description="Command-line options")
+    parser.add_argument("--proxy-address", default="0.0.0.0",
+                        help="Address for proxy server to bind to.")
+    parser.add_argument("--proxy-port", type=int, default=8080,
+                        help="Port for proxy server to listen on.")
+    parser.add_argument("--server-address", default="http://localhost",
+                        help="Address of server to proxy.")
+    parser.add_argument("--server-port", type=int, default=80,
+                        help="Port for proxy server to listen on.")
+    parser.add_argument("--ssl-cert",
+                        help="Path to SSL Certificate file.")
+    parser.add_argument("--ssl-key",
+                        help="Path to SSL Key file.")
+    parser.add_argument("--ssl-ca",
+                        help="Path to SSL CA Certificate to use.")
+
+    args = parser.parse_args()
+
+    if bool(args.ssl_cert) != bool(args.ssl_key):
+        parser.error("Both ssl-cert and ssl-key must be specified.")
+    if args.ssl_ca and not all((args.ssl_cert, args.ssl_key)):
+        parser.error("Incomplete set of ssl options used.")
+
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    ProxyHTTPRequestHandler.args = args
+    print(f"Listening on {args.proxy_address}:{args.proxy_port}.", file=sys.stderr)
+    print(f"Proxying to {args.server_address}:{args.server_port}.", file=sys.stderr)
+    httpd = http.server.HTTPServer((args.proxy_address, args.proxy_port), ProxyHTTPRequestHandler)
+    if args.ssl_cert:
+        print("SSL enabled.", file=sys.stderr)
+        httpd.socket = ssl.wrap_socket(httpd.socket,
+                                       server_side=True,
+                                       ca_certs=args.ssl_ca,
+                                       certfile=args.ssl_cert,
+                                       keyfile=args.ssl_key,
+                                       cert_reqs=ssl.CERT_REQUIRED,
+                                       ssl_version=ssl.PROTOCOL_TLS)
+    httpd.serve_forever()
