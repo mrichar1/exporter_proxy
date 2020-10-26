@@ -10,4 +10,3 @@ Type=simple
 ExecStart=/usr/bin/exporter_proxy --config /etc/prometheus/exporter_proxy/%i.ini
 Restart=always
 RestartSec=10
-
