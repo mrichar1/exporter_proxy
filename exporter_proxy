@@ -20,11 +20,11 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_HEAD(self):  # pylint:disable=invalid-name
-        """Method called for HEAD requests"""
+        """Method called for http HEAD requests"""
         self.do_GET(body=False)
 
     def do_GET(self, body=True):  # pylint:disable=invalid-name
-        """Method called for HEAD requests"""
+        """Method called for http GET requests"""
         try:
             resp = urllib.request.urlopen(f"{self.conf['server_url']}{self.path}")
         except urllib.error.HTTPError as err:
