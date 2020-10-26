@@ -1,0 +1,13 @@
+# Sample systemd 'instance' service
+# Running: systemctl start exporter_proxy@node_exporter
+# Will load the config file /etc/prometheus/exporter_proxy/node_exporter.ini
+
+[Unit]
+Description=Reverse proxy for Prometheus exporters: %i
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/exporter_proxy --config /etc/prometheus/exporter_proxy/%{i}.ini
+Restart=always
+RestartSec=10
+
