@@ -2,6 +2,8 @@
 """A simple TLS reverse proxy for use with Prometheus exporters."""
 
 from argparse import ArgumentParser
+from configparser import ConfigParser
+from functools import partial
 import http.server
 import shutil
 import ssl
@@ -9,13 +11,22 @@ import sys
 import urllib.error
 import urllib.request
 
+
 class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    def do_HEAD(self):
+    """A handler to proxy HTTP requests."""
+
+    def __init__(self, conf, *args, **kwargs):
+        self.conf = conf
+        super().__init__(*args, **kwargs)
+
+    def do_HEAD(self):  # pylint:disable=invalid-name
+        """Method called for HEAD requests"""
         self.do_GET(body=False)
 
-    def do_GET(self, body=True):
+    def do_GET(self, body=True):  # pylint:disable=invalid-name
+        """Method called for HEAD requests"""
         try:
-            resp = urllib.request.urlopen(f"{self.args.server_address}:{self.args.server_port}{self.path}")
+            resp = urllib.request.urlopen(f"{self.conf['server_address']}:{self.conf['server_port']}{self.path}")
         except urllib.error.HTTPError as err:
             self.send_error(err.code, err.reason)
             return
@@ -25,53 +36,53 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         self.send_response(resp.code)
         for header, val in resp.headers.items():
-            if header not in ['Content-Encoding', 'Transfer-Encoding', 'content-encoding', 'transfer-encoding', 'content-length', 'Content-Length']:
+            if header.lower() != 'transfer-encoding':
                 self.send_header(header, val)
         self.end_headers()
         if body:
             shutil.copyfileobj(resp, self.wfile)
         return
 
-def parse_args():
+
+def serve(conf):
+    """Launch an httpd listener."""
+    print(f"Listening on {conf['proxy_address']}:{int(conf['proxy_port'])}.", file=sys.stderr)
+    print(f"Proxying to {conf['server_address']}:{int(conf['server_port'])}.", file=sys.stderr)
+    handler = partial(ProxyHTTPRequestHandler, conf)
+    httpd = http.server.HTTPServer((conf["proxy_address"], int(conf["proxy_port"])), handler)
+    if conf.get("ssl_cert"):
+        print("SSL enabled.", file=sys.stderr)
+        context = ssl.create_default_context(purpose=ssl.PROTOCOL_TLS)
+        context.load_cert_chain(certfile=conf.get("ssl_cert"), keyfile=conf.get("ssl_key"))
+        if conf.get("ssl_verify"):
+            print("SSL client verification enabled.", file=sys.stderr)
+            context.verify_mode = ssl.CERT_REQUIRED
+        with context.wrap_socket(httpd.socket, server_side=True) as sock:
+            httpd.socket = sock
+            httpd.serve_forever()
+    else:
+        httpd.serve_forever()
+
+
+def get_config():
+    """Locate and read the config file."""
     parser = ArgumentParser(description="Command-line options")
-    parser.add_argument("--proxy-address", default="0.0.0.0",
-                        help="Address for proxy server to bind to.")
-    parser.add_argument("--proxy-port", type=int, default=8080,
-                        help="Port for proxy server to listen on.")
-    parser.add_argument("--server-address", default="http://localhost",
-                        help="Address of server to proxy.")
-    parser.add_argument("--server-port", type=int, default=80,
-                        help="Port for proxy server to listen on.")
-    parser.add_argument("--ssl-cert",
-                        help="Path to SSL Certificate file.")
-    parser.add_argument("--ssl-key",
-                        help="Path to SSL Key file.")
-    parser.add_argument("--ssl-ca",
-                        help="Path to SSL CA Certificate to use.")
-
+    parser.add_argument("-c", "--config", default="/etc/prometheus/exporter_proxy.ini",
+                        help="Path to config file. (Defaults to: %(default)s)")
     args = parser.parse_args()
+    conf = ConfigParser()
 
-    if bool(args.ssl_cert) != bool(args.ssl_key):
-        parser.error("Both ssl-cert and ssl-key must be specified.")
-    if args.ssl_ca and not all((args.ssl_cert, args.ssl_key)):
-        parser.error("Incomplete set of ssl options used.")
+    with open(args.config) as conf_f:
+        conf.read_file(conf_f)
+    return conf
 
-    return args
+
+def main():
+    """Launch a process for each config section."""
+    config = get_config()
+
+    serve(dict(config.items('exporter_proxy')))
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    ProxyHTTPRequestHandler.args = args
-    print(f"Listening on {args.proxy_address}:{args.proxy_port}.", file=sys.stderr)
-    print(f"Proxying to {args.server_address}:{args.server_port}.", file=sys.stderr)
-    httpd = http.server.HTTPServer((args.proxy_address, args.proxy_port), ProxyHTTPRequestHandler)
-    if args.ssl_cert:
-        print("SSL enabled.", file=sys.stderr)
-        httpd.socket = ssl.wrap_socket(httpd.socket,
-                                       server_side=True,
-                                       ca_certs=args.ssl_ca,
-                                       certfile=args.ssl_cert,
-                                       keyfile=args.ssl_key,
-                                       cert_reqs=ssl.CERT_REQUIRED,
-                                       ssl_version=ssl.PROTOCOL_TLS)
-    httpd.serve_forever()
+    main()
