@@ -26,7 +26,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self, body=True):  # pylint:disable=invalid-name
         """Method called for HEAD requests"""
         try:
-            resp = urllib.request.urlopen(f"{self.conf['server_address']}:{self.conf['server_port']}{self.path}")
+            resp = urllib.request.urlopen(f"{self.conf['server_url']}{self.path}")
         except urllib.error.HTTPError as err:
             self.send_error(err.code, err.reason)
             return
@@ -47,7 +47,7 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 def serve(conf):
     """Launch an httpd listener."""
     print(f"Listening on {conf['proxy_address']}:{int(conf['proxy_port'])}.", file=sys.stderr)
-    print(f"Proxying to {conf['server_address']}:{int(conf['server_port'])}.", file=sys.stderr)
+    print(f"Proxying to {conf['server_url']}.", file=sys.stderr)
     handler = partial(ProxyHTTPRequestHandler, conf)
     httpd = http.server.HTTPServer((conf["proxy_address"], int(conf["proxy_port"])), handler)
     if conf.get("ssl_cert"):
