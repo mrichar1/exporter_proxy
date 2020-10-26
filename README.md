@@ -1,6 +1,6 @@
 # exporter_proxy
 
-A small pure-python Reverse HTTP proxy for Prometheus exporters with TLS support.
+A small pure-python Reverse HTTP proxy for [Prometheus](https://prometheus.io) exporters with TLS support.
 
 # Installation
 
@@ -50,3 +50,9 @@ scrape_configs:
     - files:
       - /etc/prometheus/targets.d/node_targets.json
 ```
+
+# Multiple Exporters
+
+`exporter_proxy@.service` is an example `systemd` 'instance' service that will start an instance of `exporter_proxy` by loading a config file based on the instance name.
+
+For example `systemctl start exporter_proxy@node` would run using the config in `/etc/prometheus/exporter_procy/node.ini`
