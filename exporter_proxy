@@ -41,7 +41,6 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         if body:
             shutil.copyfileobj(resp, self.wfile)
-        return
 
 
 def serve(conf):
