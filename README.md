@@ -33,3 +33,20 @@ The following configuration options are available:
 * _ssl_key_ - Path to file containing the certificate key for the proxy server. (optional, if key is in the certfile).
 * _ssl_verify_ - Should client certificate verification be performed. (optional).
 
+## Prometheus
+
+The documentation on configuring Prometheus to scrape using TLS is here: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
+
+TLS is configured separately for each scrape job:
+
+```
+scrape_configs:
+  - job_name: node
+    scheme: https
+    tls_config:
+        cert_file: /etc/prometheus/exporter_proxy.crt
+        key_file: /etc/prometheus/exporter_proxy.key
+    file_sd_configs:
+    - files:
+      - /etc/prometheus/targets.d/node_targets.json
+```
