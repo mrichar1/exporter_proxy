@@ -52,11 +52,12 @@ def serve(conf):
     httpd = http.server.HTTPServer((conf["proxy_address"], int(conf["proxy_port"])), handler)
     if conf.get("ssl_cert"):
         print("SSL enabled.", file=sys.stderr)
-        context = ssl.create_default_context(purpose=ssl.PROTOCOL_TLS)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=conf.get("ssl_cert"), keyfile=conf.get("ssl_key"))
         if conf.get("ssl_verify"):
             print("SSL client verification enabled.", file=sys.stderr)
             context.verify_mode = ssl.CERT_REQUIRED
+            context.load_default_certs()
         with context.wrap_socket(httpd.socket, server_side=True) as sock:
             httpd.socket = sock
             httpd.serve_forever()
