@@ -32,6 +32,7 @@ The following configuration options are available:
 * _ssl_cert_ - Path to file containing the public certificate or chain for the proxy server (optional - if set enables SSL).
 * _ssl_key_ - Path to file containing the certificate key for the proxy server. (optional, if key is in the certfile).
 * _ssl_verify_ - Should client certificate verification be performed. (optional).
+* _ssl_clients_ - A space-separated list of allowed clients. Matches entries in the client certificate `subjectAltName` field (optional - requires `ssl_verify` to be set).
 
 ## Prometheus
 

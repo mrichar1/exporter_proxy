@@ -25,6 +25,14 @@ class ProxyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self, body=True):  # pylint:disable=invalid-name
         """Method called for http GET requests"""
+
+        if self.conf.get("ssl_verify"):
+            clients = set(self.conf.get("ssl_clients", '').split())
+            if clients:
+                alt_names = {x[1] for x in self.connection.getpeercert()['subjectAltName']}
+                if not clients & alt_names:
+                    self.send_error(403, "Forbidden")
+                    return
         try:
             resp = urllib.request.urlopen(f"{self.conf['server_url']}{self.path}")
         except urllib.error.HTTPError as err:
@@ -55,6 +63,8 @@ def serve(conf):
         context.load_cert_chain(certfile=conf.get("ssl_cert"), keyfile=conf.get("ssl_key"))
         if conf.get("ssl_verify"):
             print("SSL client verification enabled.", file=sys.stderr)
+            if conf.get("ssl_clients"):
+                print(f"SSL allowed clients: {conf.get('ssl_clients')}", file=sys.stderr)
             context.verify_mode = ssl.CERT_REQUIRED
             context.load_default_certs()
         with context.wrap_socket(httpd.socket, server_side=True) as sock:
