@@ -6,6 +6,8 @@ A small pure-python Reverse HTTP proxy for [Prometheus](https://prometheus.io) e
 
 `exporter_proxy` can be downloaded and run as a standalone script. `setup.py` is provided for simplifying package builds.
 
+Since it is pure-python, `exporter_proxy` should run on any OS with Python built with SSL support. It has been tested on Linux and Windows.
+
 # Use
 
 ```
