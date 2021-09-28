@@ -15,7 +15,11 @@ setup(
     long_description=__doc__,
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
-    data_files = [("share/licenses/exporter_proxy", ["LICENSE"]), ("share/doc/exporter_proxy", ["README.md"])],
+    data_files = [
+        ("share/licenses/exporter_proxy", ["LICENSE"]),
+        ("share/doc/exporter_proxy", ["README.md"]),
+        ('/usr/lib/systemd/system', ['exporter_proxy@.service'])
+    ],
     zip_safe=False,
     platforms='any',
     install_requires=dependencies,
